@@ -19,6 +19,12 @@ Changelog
 * Support for Master-Slave setup
 * Thundering herd protection
 
+0.11.0
+------
+
+* Adds support for specifying the connection pool class.
+* Adds ability to set the max connections for the connection pool.
+
 
 0.10.0
 ------
@@ -77,6 +83,8 @@ example::
                 'DB': 1,
                 'PASSWORD': 'yadayada',
                 'PARSER_CLASS': 'redis.connection.HiredisParser',
+                'CONNECTION_POOL_CLASS': 'redis.BlockingConnectionPool',
+                'MAX_CONNECTIONS': 1000,
                 'PICKLE_VERSION': 2,
             },
         },
