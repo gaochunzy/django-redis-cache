@@ -460,3 +460,37 @@ class RedisCacheTests(TestCase):
         self.assertEqual(cache._client.connection_pool._created_connections, 2)
         cache._client.connection_pool.release = release
         cache._client.connection_pool.max_connections = 2**31
+
+    def test_has_key_with_no_key(self):
+        self.assertFalse(self.cache.has_key('does_not_exist'))
+
+    def test_has_key_with_key(self):
+        self.cache.set('a', 'a')
+        self.assertTrue(self.cache.has_key('a'))
+
+    def test_ttl_set_expiry(self):
+        self.cache.set('a', 'a', 10)
+        ttl = self.cache.ttl('a')
+        self.assertAlmostEqual(ttl, 10)
+
+    def test_ttl_no_expiry(self):
+        self.cache.set('a', 'a', timeout=None)
+        ttl = self.cache.ttl('a')
+        self.assertTrue(ttl is None)
+
+    def test_ttl_past_expiry(self):
+        self.cache.set('a', 'a', timeout=1)
+        ttl = self.cache.ttl('a')
+        self.assertAlmostEqual(ttl, 1)
+
+        time.sleep(1)
+
+        ttl = self.cache.ttl('a')
+        self.assertEqual(ttl, 0)
+
+    def test_non_existent_key(self):
+        """ Non-existent keys are semantically the same as keys that have
+        expired.
+        """
+        ttl = self.cache.ttl('does_not_exist')
+        self.assertEqual(ttl, 0)

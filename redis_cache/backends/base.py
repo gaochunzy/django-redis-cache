@@ -329,6 +329,29 @@ class BaseRedisCache(BaseCache):
     # Extra api methods #
     #####################
 
+    def _has_key(self, client, key, version=None):
+        """Returns True if the key is in the cache and has not expired."""
+        key = self.make_key(key, version=version)
+        return client.exists(key)
+
+    def has_key(self, key, version=None):
+        raise NotImplementedError
+
+    def _ttl(self, client, key, version=None):
+        """
+        Returns the 'time-to-live' of a key.  If the key is not volitile, i.e.
+        it has not set expiration, then the value returned is None.  Otherwise,
+        the value is the number of seconds remaining.  If the key does not exist,
+        0 is returned.
+        """
+        key = self.make_key(key, version=version)
+        if client.exists(key):
+            return client.ttl(key)
+        return 0
+
+    def ttl(self, key, version=None):
+        raise NotImplementedError
+
     def _delete_pattern(self, client, pattern):
         keys = client.keys(pattern)
         if len(keys):

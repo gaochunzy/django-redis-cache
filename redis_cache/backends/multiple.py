@@ -15,7 +15,7 @@ from redis_cache.connection import pool
 class ShardedRedisCache(BaseRedisCache):
 
     def __init__(self, server, params):
-        super(BaseRedisCache, self).__init__(params)
+        super(BaseRedisCache, self).__init__(server, params)
         self._params = params
         self._server = server
         self._pickle_version = None
@@ -196,6 +196,14 @@ class ShardedRedisCache(BaseRedisCache):
     #####################
     # Extra api methods #
     #####################
+
+    def has_key(self, key, version=None):
+        client = self.get_client(key, for_write=True)
+        return self._has_key(client, key, version)
+
+    def ttl(self, key, version=None):
+        client = self.get_client(key, for_write=True)
+        return self._ttl(client, key, version)
 
     def delete_pattern(self, pattern, version=None):
         pattern = self.make_key(pattern, version=version)

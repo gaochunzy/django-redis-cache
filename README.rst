@@ -19,6 +19,21 @@ Changelog
 * Support for Master-Slave setup
 * Thundering herd protection
 
+0.13.0
+------
+
+* Adds custom `has_key` implementation that uses Redis's `exists` command.
+    This will speed `has_key` up drastically if the key under question is
+    extremely large.
+
+0.12.0
+------
+
+* Keys can now be kept alive indefinitely by setting the timeout to None,
+    e.g. `cache.set('key', 'value', timeout=None)`
+* Adds `ttl` method to the cache.  `cache.ttl(key)` will return the number of
+    seconds before it expires or None if the key is not volitile.
+
 0.11.0
 ------
 
@@ -84,6 +99,10 @@ example::
                 'PASSWORD': 'yadayada',
                 'PARSER_CLASS': 'redis.connection.HiredisParser',
                 'CONNECTION_POOL_CLASS': 'redis.BlockingConnectionPool',
+                'CONNECTION_POOL_CLASS_KWARGS': {
+                    'max_connections': 50,
+                    'timeout': 20,
+                }
                 'MAX_CONNECTIONS': 1000,
                 'PICKLE_VERSION': 2,
             },
