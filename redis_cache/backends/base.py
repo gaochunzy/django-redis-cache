@@ -1,8 +1,9 @@
-import sys
-from math import ceil
 from django.core.cache.backends.base import BaseCache, InvalidCacheBackendError
 from django.core.exceptions import ImproperlyConfigured
 from django.utils import importlib
+from django.utils.functional import cached_property
+from django.utils.importlib import import_module
+
 from redis_cache.compat import smart_bytes
 
 try:
@@ -15,7 +16,7 @@ try:
 except ImportError:
     raise InvalidCacheBackendError("Redis cache backend requires the 'redis-py' library")
 
-from redis.connection import DefaultParser
+from redis.connection import DefaultParser, pool
 
 from redis_cache.utils import CacheKey
 
@@ -26,30 +27,60 @@ class BaseRedisCache(BaseCache):
         """
         Connect to Redis, and set up cache backend.
         """
-        self._init(server, params)
+        super(BaseRedisCache, self).__init__(server, params)
+        self.params = params or {}
+        self.options = params.get('OPTIONS', {})
 
-    @property
-    def params(self):
-        return self._params or {}
+    def create_client(self, server):
+        kwargs = {
+            'db': self.db,
+            'password': self.password,
+        }
+        if '://' in server:
+            client = redis.StrictRedis.from_url(
+                server,
+                parser_class=self.parser_class,
+                max_connections=self.max_connections,
+                **kwargs
+            )
+            kwargs.update(client.pool.connection_kwargs)
+        else:
+            unix_socket_path = None
+            if ':' in server:
+                host, port = server.rsplit(':', 1)
+                try:
+                    port = int(port)
+                except (ValueError, TypeError):
+                    raise ImproperlyConfigured("Port value must be an integer")
+            else:
+                host, port = None, None
+                unix_socket_path = server
 
-    @property
-    def options(self):
-        return self.params.get('OPTIONS', {})
+            kwargs.update(host=host, port=port, unix_socket_path=unix_socket_path)
+            client = redis.StrictRedis(**kwargs)
 
-    @property
+        connection_pool = pool.get_connection_pool(
+            parser_class=self.parser_class,
+            connection_pool_class=self.connection_pool_class,
+            connection_pool_class_kwargs=self.connection_pool_class_kwargs,
+            **kwargs
+        )
+        client.connection_pool = connection_pool
+        return client
+
+    @cached_property
     def db(self):
         _db = self.params.get('db', self.options.get('DB', 1))
         try:
-            _db = int(_db)
+            return int(_db)
         except (ValueError, TypeError):
             raise ImproperlyConfigured("db value must be an integer")
-        return _db
 
-    @property
+    @cached_property
     def password(self):
         return self.params.get('password', self.options.get('PASSWORD', None))
 
-    @property
+    @cached_property
     def parser_class(self):
         cls = self.options.get('PARSER_CLASS', None)
         if cls is None:
@@ -64,49 +95,47 @@ class BaseRedisCache(BaseCache):
             raise ImproperlyConfigured("Could not find module '%s'" % e)
         return parser_class
 
-    @property
+    @cached_property
     def pickle_version(self):
         """
         Get the pickle version from the settings and save it for future use
         """
-        if self._pickle_version is None:
-            _pickle_version = self.options.get('PICKLE_VERSION', -1)
-            try:
-                _pickle_version = int(_pickle_version)
-            except (ValueError, TypeError):
-                raise ImproperlyConfigured("pickle version value must be an integer")
-            self._pickle_version = _pickle_version
-        return self._pickle_version
+        _pickle_version = self.options.get('PICKLE_VERSION', -1)
+        try:
+            return int(_pickle_version)
+        except (ValueError, TypeError):
+            raise ImproperlyConfigured("pickle version value must be an integer")
 
-    @property
+    @cached_property
+    def connection_pool_class(self):
+        pool_class = self.options.get('CONNECTION_POOL_CLASS', 'redis.ConnectionPool')
+        module_name, class_name = pool_class.rsplit('.', 1)
+        module = import_module(module_name)
+        try:
+            return getattr(module, class_name)
+        except AttributeError:
+            raise ImportError('cannot import name %s' % class_name)
+
+    @cached_property
     def master_client(self):
         """
         Get the write server:port of the master cache
         """
-        if not hasattr(self, '_master_client') and self.__master_client is None:
-            cache = self.options.get('MASTER_CACHE', None)
-            if cache is None:
-                self._master_client = None
-            else:
-                self._master_client = None
-                try:
-                    host, port = cache.split(":")
-                except ValueError:
-                    raise ImproperlyConfigured("MASTER_CACHE must be in the form <host>:<port>")
-                for client in self.clients:
-                    connection_kwargs = client.connection_pool.connection_kwargs
-                    if connection_kwargs['host'] == host and connection_kwargs['port'] == int(port):
-                        self._master_client = client
-                        break
-                if self._master_client is None:
-                    raise ImproperlyConfigured("%s is not in the list of available redis-server instances." % cache)
-        return self._master_client
-
-    def __getstate__(self):
-        return {'params': self._params, 'server': self._server}
-
-    def __setstate__(self, state):
-        self._init(**state)
+        cache = self.options.get('MASTER_CACHE', None)
+        if cache is None:
+            self._master_client = None
+        else:
+            self._master_client = None
+            try:
+                host, port = cache.split(":")
+            except ValueError:
+                raise ImproperlyConfigured("MASTER_CACHE must be in the form <host>:<port>")
+            for client in self.clients:
+                connection_kwargs = client.connection_pool.connection_kwargs
+                if connection_kwargs['host'] == host and connection_kwargs['port'] == int(port):
+                    return client
+            if self._master_client is None:
+                raise ImproperlyConfigured("%s is not in the list of available redis-server instances." % cache)
 
     def serialize(self, value):
         return pickle.dumps(value, self.pickle_version)

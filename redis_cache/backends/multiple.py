@@ -15,12 +15,6 @@ from redis_cache.connection import pool
 class ShardedRedisCache(BaseRedisCache):
 
     def __init__(self, server, params):
-        """
-        Connect to Redis, and set up cache backend.
-        """
-        self._init(server, params)
-
-    def _init(self, server, params):
         super(BaseRedisCache, self).__init__(params)
         self._params = params
         self._server = server
@@ -35,32 +29,7 @@ class ShardedRedisCache(BaseRedisCache):
             servers = server
 
         for server in servers:
-            unix_socket_path = None
-            if ':' in server:
-                host, port = server.rsplit(':', 1)
-                try:
-                    port = int(port)
-                except (ValueError, TypeError):
-                    raise ImproperlyConfigured("port value must be an integer")
-            else:
-                host, port = None, None
-                unix_socket_path = server
-
-            kwargs = {
-                'db': self.db,
-                'password': self.password,
-                'host': host,
-                'port': port,
-                'unix_socket_path': unix_socket_path,
-            }
-            connection_pool = pool.get_connection_pool(
-                parser_class=self.parser_class,
-                **kwargs
-            )
-            client = redis.Redis(
-                connection_pool=connection_pool,
-                **kwargs
-            )
+            client = self.create_client(server)
             self.clients.append(client)
             self.sharder.add(client, "%s:%s" % (host, port))
 

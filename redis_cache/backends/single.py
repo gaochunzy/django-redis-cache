@@ -17,40 +17,12 @@ class RedisCache(BaseRedisCache):
         """
         Connect to Redis, and set up cache backend.
         """
-        self._init(server, params)
+        super(BaseRedisCache, self).__init__(server, params)
 
-    def _init(self, server, params):
-        super(BaseRedisCache, self).__init__(params)
-        self._params = params
-        self._server = server
         if not isinstance(server, bytes_type):
             self._server, = server
 
-        self._pickle_version = None
-
-        unix_socket_path = None
-        if ':' in self._server:
-            host, port = self._server.rsplit(':', 1)
-            try:
-                port = int(port)
-            except (ValueError, TypeError):
-                raise ImproperlyConfigured("port value must be an integer")
-        else:
-            host, port = None, None
-            unix_socket_path = self._server
-
-        kwargs = {
-            'db': self.db,
-            'password': self.password,
-            'host': host,
-            'port': port,
-            'unix_socket_path': unix_socket_path,
-        }
-        connection_pool = pool.get_connection_pool(
-            parser_class=self.parser_class,
-            **kwargs
-        )
-        self.client = redis.Redis(connection_pool=connection_pool, **kwargs)
+        self.client = self.create_client(server)
 
     def get_client(self, *args):
         return self.client

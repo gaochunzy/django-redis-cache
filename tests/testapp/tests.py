@@ -9,6 +9,9 @@ except ImportError:
 from django.conf import settings
 from django.core.cache import get_cache
 from django.test import TestCase
+
+import redis
+
 from .models import Poll, expensive_calculation
 from redis_cache.cache import RedisCache, ImproperlyConfigured, pool
 from redis_cache.server import server
@@ -434,3 +437,26 @@ class RedisCacheTests(TestCase):
         value = self.cache.get_or_set('a', expensive_function, 1)
         self.assertEqual(expensive_function.num_calls, 2)
         self.assertEqual(value, 42)
+
+    def test_max_connections(self):
+        pool._connection_pools = {}
+        cache = get_cache('default')
+
+        def noop(*args, **kwargs):
+            pass
+
+        release = cache._client.connection_pool.release
+        cache._client.connection_pool.release = noop
+        self.assertEqual(cache._client.connection_pool.max_connections, 2)
+
+        cache.set('a', 'a')
+        self.assertEqual(cache._client.connection_pool._created_connections, 1)
+
+        cache.set('a', 'a')
+        self.assertEqual(cache._client.connection_pool._created_connections, 2)
+
+        with self.assertRaises(redis.ConnectionError):
+            cache.set('a', 'a')
+        self.assertEqual(cache._client.connection_pool._created_connections, 2)
+        cache._client.connection_pool.release = release
+        cache._client.connection_pool.max_connections = 2**31

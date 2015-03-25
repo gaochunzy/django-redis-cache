@@ -7,28 +7,39 @@ class CacheConnectionPool(object):
     def __init__(self):
         self._connection_pools = {}
 
-    def get_connection_pool(self,
+    def get_connection_pool(
+        self,
         host='127.0.0.1',
         port=6379,
         db=1,
         password=None,
         parser_class=None,
-        unix_socket_path=None):
+        unix_socket_path=None,
+        max_connections=None,
+        connection_pool_class=None,
+        connection_pool_class_kwargs=None,
+    ):
 
-        connection_identifier = (host, port, db, parser_class, unix_socket_path)
+        connection_identifier = (
+            host, port, db, parser_class, unix_socket_path, max_connections
+        )
 
         pool = self._connection_pools.get(connection_identifier)
 
-        if not pool:
-
-            connection_class = unix_socket_path and UnixDomainSocketConnection or Connection
+        if pool is None:
+            connection_class = (
+                unix_socket_path and UnixDomainSocketConnection or Connection
+            )
 
             kwargs = {
                 'db': db,
                 'password': password,
                 'connection_class': connection_class,
                 'parser_class': parser_class,
+                'max_connections': max_connections,
             }
+            kwargs.update(connection_pool_class_kwargs)
+
             if unix_socket_path is None:
                 kwargs.update({
                     'host': host,
@@ -36,7 +47,9 @@ class CacheConnectionPool(object):
                 })
             else:
                 kwargs['path'] = unix_socket_path
-            self._connection_pools[connection_identifier] = redis.ConnectionPool(**kwargs)
+
+            self._connection_pools[connection_identifier] = connection_pool_class(**kwargs)
+
         return self._connection_pools[connection_identifier]
 
 pool = CacheConnectionPool()
