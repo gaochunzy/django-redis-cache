@@ -9,7 +9,7 @@ except ImportError:
 
 from redis_cache.backends.base import BaseRedisCache
 from redis_cache.sharder import CacheSharder
-from redis_cache.connection import pool
+from redis_cache.connection import pool, DEFAULT_TIMEOUT
 
 
 class ShardedRedisCache(BaseRedisCache):
@@ -103,7 +103,18 @@ class ShardedRedisCache(BaseRedisCache):
         if client is None:
             client = self.get_client(key, for_write=True)
         key = self.make_key(key, version=version)
-        return self._set(client, key, value, timeout, _add_only=False)
+        if timeout is DEFAULT_TIMEOUT:
+            timeout = self.default_timeout
+        if timeout is not None:
+            timeout = int(timeout)
+
+        # If ``value`` is not an int, then pickle it
+        if not isinstance(value, int) or isinstance(value, bool):
+            result = self._set(key, pickle.dumps(value), timeout, client, _add_only)
+        else:
+            result = self._set(key, value, timeout, client, _add_only)
+        # result is a boolean
+        return result
 
     def delete(self, key, version=None):
         """

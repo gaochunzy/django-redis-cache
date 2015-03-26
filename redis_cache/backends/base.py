@@ -199,13 +199,7 @@ class BaseRedisCache(BaseCache):
         raise NotImplementedError
 
     def _set(self, client, key, value, timeout, _add_only=False):
-
-        value = self.prep_value(value)
-
-        if timeout is None:
-            timeout = self.default_timeout
-
-        if timeout == 0:
+        if timeout is None or timeout == 0:
             if _add_only:
                 return client.setnx(key, value)
             return client.set(key, value)

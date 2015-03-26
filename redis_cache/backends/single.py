@@ -1,6 +1,6 @@
 from django.core.cache.backends.base import InvalidCacheBackendError
 from django.core.exceptions import ImproperlyConfigured
-from redis_cache.compat import bytes_type
+from redis_cache.compat import bytes_type, DEFAULT_TIMEOUT
 
 try:
     import redis
@@ -53,14 +53,25 @@ class RedisCache(BaseRedisCache):
         key = self.make_key(key, version=version)
         return self._get(self.client, key, default)
 
-    def set(self, key, value, timeout=None, version=None, client=None):
+    def set(self, key, value, timeout=DEFAULT_TIMEOUT, version=None, client=None):
         """
         Persist a value to the cache, and set an optional expiration time.
         """
-        if client is None:
-            client = self.client
+        if not client:
+            client = self._client
         key = self.make_key(key, version=version)
-        return self._set(client, key, value, timeout, _add_only=False)
+        if timeout is DEFAULT_TIMEOUT:
+            timeout = self.default_timeout
+        if timeout is not None:
+            timeout = int(timeout)
+
+        # If ``value`` is not an int, then pickle it
+        if not isinstance(value, int) or isinstance(value, bool):
+            result = self._set(key, pickle.dumps(value), timeout, client, _add_only)
+        else:
+            result = self._set(key, value, timeout, client, _add_only)
+        # result is a boolean
+        return result
 
     def delete(self, key, version=None):
         """
