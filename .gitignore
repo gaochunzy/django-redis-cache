@@ -16,3 +16,4 @@ dist/*
 dump.rdb
 dist/*
 MANIFEST
+.venv

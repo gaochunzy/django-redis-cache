@@ -67,7 +67,7 @@ class RedisCacheTests(TestCase):
         connection_class = client.connection_pool.connection_class
         if connection_class is not UnixDomainSocketConnection:
             self.assertEqual(client.connection_pool.connection_kwargs['host'], '127.0.0.1')
-            self.assertEqual(client.connection_pool.connection_kwargs['port'], 6380)
+            self.assertEqual(client.connection_pool.connection_kwargs['port'], 6379)
             self._skip_tearDown = True
         self.assertEqual(client.connection_pool.connection_kwargs['db'], 15)
 
@@ -338,13 +338,13 @@ class RedisCacheTests(TestCase):
     def test_multiple_connection_pool_connections(self):
         pool._connection_pools = {}
         options = settings.CACHES['default']['OPTIONS']
-        get_cache('redis_cache.cache.RedisCache', LOCATION="127.0.0.1:6380", OPTIONS=options)
+        get_cache('redis_cache.cache.RedisCache', LOCATION="127.0.0.1:6379", OPTIONS=options)
         self.assertEqual(len(pool._connection_pools), 1)
         options['DB'] = 14
-        get_cache('redis_cache.RedisCache', LOCATION="127.0.0.1:6380", OPTIONS=options)
+        get_cache('redis_cache.RedisCache', LOCATION="127.0.0.1:6379", OPTIONS=options)
         self.assertEqual(len(pool._connection_pools), 2)
         options['DB'] = 15
-        get_cache('redis_cache.RedisCache', LOCATION="127.0.0.1:6380", OPTIONS=options)
+        get_cache('redis_cache.RedisCache', LOCATION="127.0.0.1:6379", OPTIONS=options)
         self.assertEqual(len(pool._connection_pools), 2)
 
     def test_setting_string_integer_retrieves_string(self):
@@ -445,21 +445,21 @@ class RedisCacheTests(TestCase):
         def noop(*args, **kwargs):
             pass
 
-        release = cache._client.connection_pool.release
-        cache._client.connection_pool.release = noop
-        self.assertEqual(cache._client.connection_pool.max_connections, 2)
+        release = cache.client.connection_pool.release
+        cache.client.connection_pool.release = noop
+        self.assertEqual(cache.client.connection_pool.max_connections, 2)
 
         cache.set('a', 'a')
-        self.assertEqual(cache._client.connection_pool._created_connections, 1)
+        self.assertEqual(cache.client.connection_pool._created_connections, 1)
 
         cache.set('a', 'a')
-        self.assertEqual(cache._client.connection_pool._created_connections, 2)
+        self.assertEqual(cache.client.connection_pool._created_connections, 2)
 
         with self.assertRaises(redis.ConnectionError):
             cache.set('a', 'a')
-        self.assertEqual(cache._client.connection_pool._created_connections, 2)
-        cache._client.connection_pool.release = release
-        cache._client.connection_pool.max_connections = 2**31
+        self.assertEqual(cache.client.connection_pool._created_connections, 2)
+        cache.client.connection_pool.release = release
+        cache.client.connection_pool.max_connections = 2**31
 
     def test_has_key_with_no_key(self):
         self.assertFalse(self.cache.has_key('does_not_exist'))

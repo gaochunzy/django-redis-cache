@@ -9,7 +9,7 @@ except ImportError:
 
 from redis_cache.backends.base import BaseRedisCache
 from redis_cache.sharder import CacheSharder
-from redis_cache.connection import pool, DEFAULT_TIMEOUT
+from redis_cache.compat import DEFAULT_TIMEOUT
 
 
 class ShardedRedisCache(BaseRedisCache):

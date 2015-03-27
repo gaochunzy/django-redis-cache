@@ -4,7 +4,7 @@ from django.utils import importlib
 from django.utils.functional import cached_property
 from django.utils.importlib import import_module
 
-from redis_cache.compat import smart_bytes
+from redis_cache.compat import smart_bytes, DEFAULT_TIMEOUT
 
 try:
     import cPickle as pickle
@@ -16,8 +16,9 @@ try:
 except ImportError:
     raise InvalidCacheBackendError("Redis cache backend requires the 'redis-py' library")
 
-from redis.connection import DefaultParser, pool
+from redis.connection import DefaultParser
 
+from redis_cache.connection import pool
 from redis_cache.utils import CacheKey
 
 
@@ -27,9 +28,16 @@ class BaseRedisCache(BaseCache):
         """
         Connect to Redis, and set up cache backend.
         """
-        super(BaseRedisCache, self).__init__(server, params)
+        super(BaseRedisCache, self).__init__(params)
+        self.server = server
         self.params = params or {}
         self.options = params.get('OPTIONS', {})
+
+    def __getstate__(self):
+        return {'params': self.params, 'server': self.server}
+
+    def __setstate__(self, state):
+        self.__init__(**state)
 
     def create_client(self, server):
         kwargs = {
@@ -37,10 +45,9 @@ class BaseRedisCache(BaseCache):
             'password': self.password,
         }
         if '://' in server:
-            client = redis.StrictRedis.from_url(
+            client = redis.Redis.from_url(
                 server,
                 parser_class=self.parser_class,
-                max_connections=self.max_connections,
                 **kwargs
             )
             kwargs.update(client.pool.connection_kwargs)
@@ -57,7 +64,7 @@ class BaseRedisCache(BaseCache):
                 unix_socket_path = server
 
             kwargs.update(host=host, port=port, unix_socket_path=unix_socket_path)
-            client = redis.StrictRedis(**kwargs)
+            client = redis.Redis(**kwargs)
 
         connection_pool = pool.get_connection_pool(
             parser_class=self.parser_class,
@@ -117,6 +124,10 @@ class BaseRedisCache(BaseCache):
             raise ImportError('cannot import name %s' % class_name)
 
     @cached_property
+    def connection_pool_class_kwargs(self):
+        return self.options.get('CONNECTION_POOL_CLASS_KWARGS', {})
+
+    @cached_property
     def master_client(self):
         """
         Get the write server:port of the master cache
@@ -173,7 +184,7 @@ class BaseRedisCache(BaseCache):
     ####################
 
     def _add(self, client, key, value, timeout):
-        return self._set(client, key, value, timeout, _add_only=True)
+        return self._set(key, value, timeout, client, _add_only=True)
 
     def add(self, key, value, timeout=None, version=None):
         """
@@ -198,7 +209,7 @@ class BaseRedisCache(BaseCache):
         """
         raise NotImplementedError
 
-    def _set(self, client, key, value, timeout, _add_only=False):
+    def __set(self, client, key, value, timeout, _add_only=False):
         if timeout is None or timeout == 0:
             if _add_only:
                 return client.setnx(key, value)
@@ -212,6 +223,24 @@ class BaseRedisCache(BaseCache):
             return client.setex(key, value, timeout)
         else:
             return False
+
+    def _set(self, key, value, timeout=DEFAULT_TIMEOUT, client=None, _add_only=False):
+        """
+        Persist a value to the cache, and set an optional expiration time.
+        """
+        if not client:
+            client = self.client
+        if timeout is DEFAULT_TIMEOUT:
+            timeout = self.default_timeout
+        if timeout is not None:
+            timeout = int(timeout)
+        # If ``value`` is not an int, then pickle it
+        if not isinstance(value, int) or isinstance(value, bool):
+            result = self.__set(client, key, pickle.dumps(value), timeout, _add_only)
+        else:
+            result = self.__set(client, key, value, timeout, _add_only)
+        # result is a boolean
+        return result
 
     def set(self, key, value, timeout=None, version=None, client=None):
         """
@@ -364,8 +393,8 @@ class BaseRedisCache(BaseCache):
         if dogpile_lock is None:
             self._set(client, dogpile_lock_key, 0, None)
             value = func()
-            self._set(client, key, self.prep_value(value), None)
-            self._set(client, dogpile_lock_key, 0, timeout)
+            self.__set(client, key, self.prep_value(value), None)
+            self.__set(client, dogpile_lock_key, 0, timeout)
         else:
             value = self._get(client, key)
 

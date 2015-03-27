@@ -15,13 +15,12 @@ class CacheConnectionPool(object):
         password=None,
         parser_class=None,
         unix_socket_path=None,
-        max_connections=None,
         connection_pool_class=None,
         connection_pool_class_kwargs=None,
     ):
 
         connection_identifier = (
-            host, port, db, parser_class, unix_socket_path, max_connections
+            host, port, db, parser_class, unix_socket_path
         )
 
         pool = self._connection_pools.get(connection_identifier)
@@ -36,7 +35,6 @@ class CacheConnectionPool(object):
                 'password': password,
                 'connection_class': connection_class,
                 'parser_class': parser_class,
-                'max_connections': max_connections,
             }
             kwargs.update(connection_pool_class_kwargs)
 

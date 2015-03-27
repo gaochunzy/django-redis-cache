@@ -1,14 +1,10 @@
-from django.core.cache.backends.base import InvalidCacheBackendError
-from django.core.exceptions import ImproperlyConfigured
-from redis_cache.compat import bytes_type, DEFAULT_TIMEOUT
-
 try:
-    import redis
+    import cPickle as pickle
 except ImportError:
-    raise InvalidCacheBackendError("Redis cache backend requires the 'redis-py' library")
+    import pickle
 
 from redis_cache.backends.base import BaseRedisCache
-from redis_cache.connection import pool
+from redis_cache.compat import bytes_type, DEFAULT_TIMEOUT
 
 
 class RedisCache(BaseRedisCache):
@@ -17,7 +13,7 @@ class RedisCache(BaseRedisCache):
         """
         Connect to Redis, and set up cache backend.
         """
-        super(BaseRedisCache, self).__init__(server, params)
+        super(RedisCache, self).__init__(server, params)
 
         if not isinstance(server, bytes_type):
             self._server, = server
@@ -57,21 +53,8 @@ class RedisCache(BaseRedisCache):
         """
         Persist a value to the cache, and set an optional expiration time.
         """
-        if not client:
-            client = self._client
         key = self.make_key(key, version=version)
-        if timeout is DEFAULT_TIMEOUT:
-            timeout = self.default_timeout
-        if timeout is not None:
-            timeout = int(timeout)
-
-        # If ``value`` is not an int, then pickle it
-        if not isinstance(value, int) or isinstance(value, bool):
-            result = self._set(key, pickle.dumps(value), timeout, client, _add_only)
-        else:
-            result = self._set(key, value, timeout, client, _add_only)
-        # result is a boolean
-        return result
+        return self._set(key, value, timeout, client=self.client)
 
     def delete(self, key, version=None):
         """
@@ -120,7 +103,7 @@ class RedisCache(BaseRedisCache):
 
         pipeline = self.client.pipeline()
         for key in versioned_keys:
-            self._set(pipeline, key, data[key._original_key], timeout)
+            self._set(key, data[key._original_key], timeout, client=pipeline)
         pipeline.execute()
 
     def incr(self, key, delta=1, version=None):
