@@ -25,6 +25,8 @@ class ShardedRedisCache(BaseRedisCache):
         for server in servers:
             client = self.create_client(server)
             self.clients.append(client)
+            host = client.connection_pool.connection_kwargs['host']
+            port = client.connection_pool.connection_kwargs['port']
             self.sharder.add(client, "%s:%s" % (host, port))
 
     @property
@@ -97,18 +99,7 @@ class ShardedRedisCache(BaseRedisCache):
         if client is None:
             client = self.get_client(key, for_write=True)
         key = self.make_key(key, version=version)
-        if timeout is DEFAULT_TIMEOUT:
-            timeout = self.default_timeout
-        if timeout is not None:
-            timeout = int(timeout)
-
-        # If ``value`` is not an int, then pickle it
-        if not isinstance(value, int) or isinstance(value, bool):
-            result = self._set(key, pickle.dumps(value), timeout, client, _add_only)
-        else:
-            result = self._set(key, value, timeout, client, _add_only)
-        # result is a boolean
-        return result
+        return self._set(key, value, timeout, client=client)
 
     def delete(self, key, version=None):
         """
@@ -171,7 +162,7 @@ class ShardedRedisCache(BaseRedisCache):
         for client, keys in clients.items():
             pipeline = client.pipeline()
             for key in keys:
-                self._set(pipeline, key, data[key._original_key], timeout)
+                self._set(key, data[key._original_key], timeout, client=pipeline)
             pipeline.execute()
 
     def incr(self, key, delta=1, version=None):
@@ -203,12 +194,13 @@ class ShardedRedisCache(BaseRedisCache):
     #####################
 
     def has_key(self, key, version=None):
-        client = self.get_client(key, for_write=True)
+        client = self.get_client(key, for_write=False)
         return self._has_key(client, key, version)
 
     def ttl(self, key, version=None):
-        client = self.get_client(key, for_write=True)
-        return self._ttl(client, key, version)
+        client = self.get_client(key, for_write=False)
+        key = self.make_key(key, version=version)
+        return self._ttl(client, key)
 
     def delete_pattern(self, pattern, version=None):
         pattern = self.make_key(pattern, version=version)
@@ -219,8 +211,8 @@ class ShardedRedisCache(BaseRedisCache):
             self._delete_pattern(self.master_client, pattern)
 
     def get_or_set(self, key, func, timeout=None, version=None):
-        key = self.make_key(key, version=version)
         client = self.get_client(key, for_write=True)
+        key = self.make_key(key, version=version)
         return self._get_or_set(client, key, func, timeout)
 
     def reinsert_keys(self):

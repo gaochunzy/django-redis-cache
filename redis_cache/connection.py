@@ -20,7 +20,7 @@ class CacheConnectionPool(object):
     ):
 
         connection_identifier = (
-            host, port, db, parser_class, unix_socket_path
+            host, port, db, unix_socket_path
         )
 
         pool = self._connection_pools.get(connection_identifier)

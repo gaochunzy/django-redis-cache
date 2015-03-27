@@ -136,7 +136,8 @@ class RedisCache(BaseRedisCache):
         return self._has_key(self.client, key, version)
 
     def ttl(self, key, version=None):
-        return self._ttl(self.client, key, version)
+        key = self.make_key(key, version=version)
+        return self._ttl(self.client, key)
 
     def delete_pattern(self, pattern, version=None):
         pattern = self.make_key(pattern, version=version)

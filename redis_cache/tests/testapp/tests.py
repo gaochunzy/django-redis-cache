@@ -67,7 +67,7 @@ class RedisCacheTests(TestCase):
         connection_class = client.connection_pool.connection_class
         if connection_class is not UnixDomainSocketConnection:
             self.assertEqual(client.connection_pool.connection_kwargs['host'], '127.0.0.1')
-            self.assertEqual(client.connection_pool.connection_kwargs['port'], 6379)
+            self.assertEqual(client.connection_pool.connection_kwargs['port'], 6380)
             self._skip_tearDown = True
         self.assertEqual(client.connection_pool.connection_kwargs['db'], 15)
 
@@ -219,9 +219,9 @@ class RedisCacheTests(TestCase):
         self.assertEqual("expire3" in self.cache, False)
 
     def test_set_expiration_timeout_None(self):
-        key, value = self.cache.make_key('key'), 'value'
-        self.cache.set(key, value)
-        self.assertTrue(self.cache.get_client(key).ttl(key) > 0)
+        key, value = 'key', 'value'
+        self.cache.set(key, value, timeout=None)
+        self.assertTrue(self.cache.ttl(key) is None)
 
     def test_set_expiration_timeout_zero(self):
         key, value = self.cache.make_key('key'), 'value'
@@ -338,13 +338,13 @@ class RedisCacheTests(TestCase):
     def test_multiple_connection_pool_connections(self):
         pool._connection_pools = {}
         options = settings.CACHES['default']['OPTIONS']
-        get_cache('redis_cache.cache.RedisCache', LOCATION="127.0.0.1:6379", OPTIONS=options)
+        get_cache('redis_cache.cache.RedisCache', LOCATION="127.0.0.1:6380", OPTIONS=options)
         self.assertEqual(len(pool._connection_pools), 1)
         options['DB'] = 14
-        get_cache('redis_cache.RedisCache', LOCATION="127.0.0.1:6379", OPTIONS=options)
+        get_cache('redis_cache.RedisCache', LOCATION="127.0.0.1:6380", OPTIONS=options)
         self.assertEqual(len(pool._connection_pools), 2)
         options['DB'] = 15
-        get_cache('redis_cache.RedisCache', LOCATION="127.0.0.1:6379", OPTIONS=options)
+        get_cache('redis_cache.RedisCache', LOCATION="127.0.0.1:6380", OPTIONS=options)
         self.assertEqual(len(pool._connection_pools), 2)
 
     def test_setting_string_integer_retrieves_string(self):
@@ -438,6 +438,10 @@ class RedisCacheTests(TestCase):
         self.assertEqual(expensive_function.num_calls, 2)
         self.assertEqual(value, 42)
 
+    def assertMaxConnection(self, cache, max_num):
+        for client in cache.clients:
+            self.assertTrue(client.connection_pool._created_connections <= max_num)
+
     def test_max_connections(self):
         pool._connection_pools = {}
         cache = get_cache('default')
@@ -445,21 +449,26 @@ class RedisCacheTests(TestCase):
         def noop(*args, **kwargs):
             pass
 
-        release = cache.client.connection_pool.release
-        cache.client.connection_pool.release = noop
-        self.assertEqual(cache.client.connection_pool.max_connections, 2)
+        releases = {}
+        for client in cache.clients:
+            releases[client.connection_pool] = client.connection_pool.release
+            client.connection_pool.release = noop
+            self.assertEqual(client.connection_pool.max_connections, 2)
 
         cache.set('a', 'a')
-        self.assertEqual(cache.client.connection_pool._created_connections, 1)
+        self.assertMaxConnection(cache, 1)
 
         cache.set('a', 'a')
-        self.assertEqual(cache.client.connection_pool._created_connections, 2)
+        self.assertMaxConnection(cache, 2)
 
         with self.assertRaises(redis.ConnectionError):
             cache.set('a', 'a')
-        self.assertEqual(cache.client.connection_pool._created_connections, 2)
-        cache.client.connection_pool.release = release
-        cache.client.connection_pool.max_connections = 2**31
+
+        self.assertMaxConnection(cache, 2)
+
+        for client in cache.clients:
+            client.connection_pool.release = releases[client.connection_pool]
+            client.connection_pool.max_connections = 2 ** 31
 
     def test_has_key_with_no_key(self):
         self.assertFalse(self.cache.has_key('does_not_exist'))

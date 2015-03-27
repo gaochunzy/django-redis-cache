@@ -21,3 +21,15 @@ CACHES = {
         },
     },
 }
+
+import redis
+
+ports = [6380, 6381, 6382]
+for port in ports:
+    client = redis.Redis(db=15, port=port)
+    try:
+        client.config_set('requirepass', 'yadayada')
+    except redis.exceptions.ResponseError:
+        pass
+
+

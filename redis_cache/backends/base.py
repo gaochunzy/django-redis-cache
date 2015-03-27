@@ -228,8 +228,7 @@ class BaseRedisCache(BaseCache):
         """
         Persist a value to the cache, and set an optional expiration time.
         """
-        if not client:
-            client = self.client
+
         if timeout is DEFAULT_TIMEOUT:
             timeout = self.default_timeout
         if timeout is not None:
@@ -360,14 +359,13 @@ class BaseRedisCache(BaseCache):
     def has_key(self, key, version=None):
         raise NotImplementedError
 
-    def _ttl(self, client, key, version=None):
+    def _ttl(self, client, key):
         """
         Returns the 'time-to-live' of a key.  If the key is not volitile, i.e.
         it has not set expiration, then the value returned is None.  Otherwise,
         the value is the number of seconds remaining.  If the key does not exist,
         0 is returned.
         """
-        key = self.make_key(key, version=version)
         if client.exists(key):
             return client.ttl(key)
         return 0
@@ -391,7 +389,7 @@ class BaseRedisCache(BaseCache):
         dogpile_lock = client.get(dogpile_lock_key)
 
         if dogpile_lock is None:
-            self._set(client, dogpile_lock_key, 0, None)
+            self._set(dogpile_lock_key, 0, None, client)
             value = func()
             self.__set(client, key, self.prep_value(value), None)
             self.__set(client, dogpile_lock_key, 0, timeout)

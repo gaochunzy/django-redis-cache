@@ -35,6 +35,7 @@ teardown:
 	rm -rf $(VENV_DIR)/
 
 test: venv
+	$(WITH_VENV) PYTHONPATH=$(PYTHONPATH): django-admin.py test --settings=redis_cache.tests.settings.single.hiredis_settings
 	$(WITH_VENV) PYTHONPATH=$(PYTHONPATH): django-admin.py test --settings=redis_cache.tests.settings.multiple.hiredis_settings
 
 package:
