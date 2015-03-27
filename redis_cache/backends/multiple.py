@@ -1,11 +1,5 @@
 from collections import defaultdict
-from django.core.cache.backends.base import InvalidCacheBackendError
 from django.core.exceptions import ImproperlyConfigured
-
-try:
-    import redis
-except ImportError:
-    raise InvalidCacheBackendError("Redis cache backend requires the 'redis-py' library")
 
 from redis_cache.backends.base import BaseRedisCache
 from redis_cache.sharder import CacheSharder
@@ -15,7 +9,7 @@ from redis_cache.compat import DEFAULT_TIMEOUT
 class ShardedRedisCache(BaseRedisCache):
 
     def __init__(self, server, params):
-        super(BaseRedisCache, self).__init__(server, params)
+        super(ShardedRedisCache, self).__init__(server, params)
         self._params = params
         self._server = server
         self._pickle_version = None

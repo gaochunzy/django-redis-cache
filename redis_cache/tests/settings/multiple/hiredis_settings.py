@@ -1,4 +1,4 @@
-from tests.settings.base_settings import *
+from redis_cache.tests.settings.base_settings import *
 
 
 CACHES = {
@@ -14,6 +14,10 @@ CACHES = {
             'PASSWORD': 'yadayada',
             'PARSER_CLASS': 'redis.connection.HiredisParser',
             'PICKLE_VERSION': 2,
+            'CONNECTION_POOL_CLASS': 'redis.ConnectionPool',
+            'CONNECTION_POOL_CLASS_KWARGS': {
+                'max_connections': 2,
+            }
         },
     },
 }
