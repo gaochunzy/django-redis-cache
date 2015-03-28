@@ -9,6 +9,10 @@ except ImportError:
 from django.conf import settings
 from django.core.cache import get_cache
 from django.test import TestCase
+try:
+    from django.test import override_settings
+except ImportError:
+    from django.test.utils import override_settings
 
 import redis
 
@@ -28,7 +32,7 @@ class C:
         return 24
 
 
-class RedisCacheTests(TestCase):
+class BaseRedisTestCase(TestCase):
     """
     A common set of tests derived from Django's own cache tests
 
@@ -503,3 +507,99 @@ class RedisCacheTests(TestCase):
         """
         ttl = self.cache.ttl('does_not_exist')
         self.assertEqual(ttl, 0)
+
+
+@override_settings(
+    CACHES={
+        'default': {
+            'BACKEND': 'redis_cache.RedisCache',
+            'LOCATION': '127.0.0.1:6380',
+            'OPTIONS': {
+                'DB': 15,
+                'PASSWORD': 'yadayada',
+                'PARSER_CLASS': 'redis.connection.HiredisParser',
+                'PICKLE_VERSION': 2,
+                'CONNECTION_POOL_CLASS': 'redis.ConnectionPool',
+                'CONNECTION_POOL_CLASS_KWARGS': {
+                    'max_connections': 2,
+                }
+            },
+        },
+    }
+)
+class SingleHiredisTestCase(BaseRedisTestCase):
+    pass
+
+
+@override_settings(
+    CACHES={
+        'default': {
+            'BACKEND': 'redis_cache.RedisCache',
+            'LOCATION': '127.0.0.1:6380',
+            'OPTIONS': {
+                'DB': 15,
+                'PASSWORD': 'yadayada',
+                'PARSER_CLASS': 'redis.connection.PythonParser',
+                'PICKLE_VERSION': 2,
+                'CONNECTION_POOL_CLASS': 'redis.ConnectionPool',
+                'CONNECTION_POOL_CLASS_KWARGS': {
+                    'max_connections': 2,
+                }
+            },
+        },
+    }
+)
+class SinglePythonParserTestCase(BaseRedisTestCase):
+    pass
+
+
+@override_settings(
+    CACHES={
+        'default': {
+            'BACKEND': 'redis_cache.ShardedRedisCache',
+            'LOCATION': [
+                '127.0.0.1:6380',
+                '127.0.0.1:6381',
+                '127.0.0.1:6382',
+            ],
+            'OPTIONS': {
+                'DB': 15,
+                'PASSWORD': 'yadayada',
+                'PARSER_CLASS': 'redis.connection.HiredisParser',
+                'PICKLE_VERSION': 2,
+                'CONNECTION_POOL_CLASS': 'redis.ConnectionPool',
+                'CONNECTION_POOL_CLASS_KWARGS': {
+                    'max_connections': 2,
+                }
+            },
+        },
+    }
+)
+class MultipleHiredisTestCase(BaseRedisTestCase):
+    pass
+
+
+@override_settings(
+    CACHES={
+        'default': {
+            'BACKEND': 'redis_cache.ShardedRedisCache',
+            'LOCATION': [
+                '127.0.0.1:6380',
+                '127.0.0.1:6381',
+                '127.0.0.1:6382',
+            ],
+            'OPTIONS': {
+                'DB': 15,
+                'PASSWORD': 'yadayada',
+                'PARSER_CLASS': 'redis.connection.PythonParser',
+                'PICKLE_VERSION': 2,
+                'CONNECTION_POOL_CLASS': 'redis.ConnectionPool',
+                'CONNECTION_POOL_CLASS_KWARGS': {
+                    'max_connections': 2,
+                }
+            },
+        },
+    }
+)
+class MultiplePythonParserTestCase(BaseRedisTestCase):
+    pass

@@ -43,8 +43,7 @@ teardown:
 	rm -rf $(VENV_DIR)/
 
 test: venv redis_server
-	$(WITH_VENV) PYTHONPATH=$(PYTHONPATH): django-admin.py test --settings=redis_cache.tests.settings.single.hiredis_settings
-	$(WITH_VENV) PYTHONPATH=$(PYTHONPATH): django-admin.py test --settings=redis_cache.tests.settings.multiple.hiredis_settings
+	$(WITH_VENV) PYTHONPATH=$(PYTHONPATH): django-admin.py test --settings=redis_cache.tests.settings
 	pkill redis-server
 
 package:
