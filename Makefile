@@ -21,6 +21,14 @@ venv: $(VENV_ACTIVATE)
 
 setup: venv
 
+redis_server:
+	test -d redis || git clone https://github.com/antirez/redis
+	git -C redis checkout 2.6
+	make -C redis
+	echo 'requirepass yadayada' | ./redis/src/redis-server - --port 6380 > /dev/null &
+	echo 'requirepass yadayada' | ./redis/src/redis-server - --port 6381 > /dev/null &
+	echo 'requirepass yadayada' | ./redis/src/redis-server - --port 6382 > /dev/null &
+
 clean:
 	python setup.py clean
 	rm -rf build/
@@ -34,9 +42,10 @@ clean:
 teardown:
 	rm -rf $(VENV_DIR)/
 
-test: venv
+test: venv redis_server
 	$(WITH_VENV) PYTHONPATH=$(PYTHONPATH): django-admin.py test --settings=redis_cache.tests.settings.single.hiredis_settings
 	$(WITH_VENV) PYTHONPATH=$(PYTHONPATH): django-admin.py test --settings=redis_cache.tests.settings.multiple.hiredis_settings
+	pkill redis-server
 
 package:
 	python setup.py sdist
