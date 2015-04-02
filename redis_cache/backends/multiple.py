@@ -14,7 +14,7 @@ class ShardedRedisCache(BaseRedisCache):
         self._server = server
         self._pickle_version = None
         self.__master_client = None
-        self.clients = []
+        self.clients = {}
         self.sharder = CacheSharder()
 
         if not isinstance(server, (list, tuple)):
@@ -24,10 +24,8 @@ class ShardedRedisCache(BaseRedisCache):
 
         for server in servers:
             client = self.create_client(server)
-            self.clients.append(client)
-            host = client.connection_pool.connection_kwargs['host']
-            port = client.connection_pool.connection_kwargs['port']
-            self.sharder.add(client, "%s:%s" % (host, port))
+            self.clients[client.connection_pool.connection_identifier] = client
+            self.sharder.add(client.connection_pool.connection_identifier)
 
     @property
     def master_client(self):
@@ -56,7 +54,8 @@ class ShardedRedisCache(BaseRedisCache):
     def get_client(self, key, for_write=False):
         if for_write and self.master_client is not None:
             return self.master_client
-        return self.sharder.get_client(key)
+        node = self.sharder.get_node(key)
+        return self.clients[node.id]
 
     def shard(self, keys, for_write=False, version=None):
         """
@@ -126,7 +125,7 @@ class ShardedRedisCache(BaseRedisCache):
         """
         if version is None:
             if self.master_client is None:
-                for client in self.clients:
+                for client in self.clients.itervalues():
                     self._clear(client)
             else:
                 self._clear(self.master_client)
@@ -205,7 +204,7 @@ class ShardedRedisCache(BaseRedisCache):
     def delete_pattern(self, pattern, version=None):
         pattern = self.make_key(pattern, version=version)
         if self.master_client is None:
-            for client in self.clients:
+            for client in self.clients.itervalues():
                 self._delete_pattern(client, pattern)
         else:
             self._delete_pattern(self.master_client, pattern)
@@ -219,6 +218,6 @@ class ShardedRedisCache(BaseRedisCache):
         """
         Reinsert cache entries using the current pickle protocol version.
         """
-        for client in self.clients:
+        for client in self.clients.itervalues():
             self._reinsert_keys(client)
         print

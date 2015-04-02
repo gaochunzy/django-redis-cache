@@ -33,10 +33,7 @@ class C:
 
 
 class BaseRedisTestCase(TestCase):
-    """
-    A common set of tests derived from Django's own cache tests
 
-    """
     def setUp(self):
         # use DB 16 for testing and hope there isn't any important data :->
         self.reset_pool()
@@ -52,7 +49,7 @@ class BaseRedisTestCase(TestCase):
 
     def reset_pool(self):
         if hasattr(self, 'cache'):
-            for client in self.cache.clients:
+            for client in self.cache.clients.itervalues():
                 client.connection_pool.disconnect()
 
     def get_cache(self, backend=None):
@@ -67,7 +64,7 @@ class BaseRedisTestCase(TestCase):
     def test_default_initialization(self):
         self.reset_pool()
         self.cache = self.get_cache()
-        client = self.cache.clients[0]
+        client = self.cache.clients[('127.0.0.1', 6380, 15, None)]
         connection_class = client.connection_pool.connection_class
         if connection_class is not UnixDomainSocketConnection:
             self.assertEqual(client.connection_pool.connection_kwargs['host'], '127.0.0.1')
@@ -293,8 +290,7 @@ class BaseRedisTestCase(TestCase):
         self.assertEqual(self.cache.get("key2"), None)
 
     def test_long_timeout(self):
-        """
-        Using a timeout greater than 30 days makes memcached think
+        """Using a timeout greater than 30 days makes memcached think
         it is an absolute expiration timestamp instead of a relative
         offset. Test that we honour this convention. Refs #12399.
         """
@@ -443,7 +439,7 @@ class BaseRedisTestCase(TestCase):
         self.assertEqual(value, 42)
 
     def assertMaxConnection(self, cache, max_num):
-        for client in cache.clients:
+        for client in cache.clients.itervalues():
             self.assertTrue(client.connection_pool._created_connections <= max_num)
 
     def test_max_connections(self):
@@ -454,7 +450,7 @@ class BaseRedisTestCase(TestCase):
             pass
 
         releases = {}
-        for client in cache.clients:
+        for client in cache.clients.itervalues():
             releases[client.connection_pool] = client.connection_pool.release
             client.connection_pool.release = noop
             self.assertEqual(client.connection_pool.max_connections, 2)
@@ -470,7 +466,7 @@ class BaseRedisTestCase(TestCase):
 
         self.assertMaxConnection(cache, 2)
 
-        for client in cache.clients:
+        for client in cache.clients.itervalues():
             client.connection_pool.release = releases[client.connection_pool]
             client.connection_pool.max_connections = 2 ** 31
 
@@ -502,12 +498,11 @@ class BaseRedisTestCase(TestCase):
         self.assertEqual(ttl, 0)
 
     def test_non_existent_key(self):
-        """ Non-existent keys are semantically the same as keys that have
+        """Non-existent keys are semantically the same as keys that have
         expired.
         """
         ttl = self.cache.ttl('does_not_exist')
         self.assertEqual(ttl, 0)
-
 
 @override_settings(
     CACHES={
@@ -602,4 +597,11 @@ class MultipleHiredisTestCase(BaseRedisTestCase):
     }
 )
 class MultiplePythonParserTestCase(BaseRedisTestCase):
-    pass
+
+    def test_key_distribution(self):
+        for i in xrange(10000):
+            self.cache.set(i, i)
+
+        for client in self.cache.clients.itervalues():
+            print len(client.keys('*'))
+

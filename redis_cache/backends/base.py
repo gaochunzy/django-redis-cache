@@ -141,7 +141,7 @@ class BaseRedisCache(BaseCache):
                 host, port = cache.split(":")
             except ValueError:
                 raise ImproperlyConfigured("MASTER_CACHE must be in the form <host>:<port>")
-            for client in self.clients:
+            for client in self.clients.itervalues():
                 connection_kwargs = client.connection_pool.connection_kwargs
                 if connection_kwargs['host'] == host and connection_kwargs['port'] == int(port):
                     return client

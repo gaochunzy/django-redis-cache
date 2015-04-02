@@ -19,13 +19,12 @@ class RedisCache(BaseRedisCache):
             self._server, = server
 
         self.client = self.create_client(server)
+        self.clients = {
+            self.client.connection_pool.connection_identifier: self.client
+        }
 
     def get_client(self, *args):
         return self.client
-
-    @property
-    def clients(self):
-        return [self.client]
 
     ####################
     # Django cache api #

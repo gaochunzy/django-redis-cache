@@ -1,4 +1,3 @@
-import redis
 from redis.connection import UnixDomainSocketConnection, Connection
 
 
@@ -47,7 +46,9 @@ class CacheConnectionPool(object):
                 kwargs['path'] = unix_socket_path
 
             self._connection_pools[connection_identifier] = connection_pool_class(**kwargs)
-
+            self._connection_pools[connection_identifier].connection_identifier = (
+                connection_identifier
+            )
         return self._connection_pools[connection_identifier]
 
 pool = CacheConnectionPool()
