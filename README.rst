@@ -2,6 +2,18 @@
 Redis Django Cache Backend
 ==========================
 
+.. image:: https://pypip.in/download/django-redis-cache/badge.svg
+    :target: https://pypi.python.org/pypi//django-redis-cache/
+    :alt: Downloads
+
+.. image:: https://pypip.in/version/django-redis-cache/badge.svg
+    :target: https://pypi.python.org/pypi/django-redis-cache/
+    :alt: Latest Version
+
+.. image:: https://pypip.in/py_versions/django-redis-cache/badge.svg
+    :target: https://pypi.python.org/pypi/django-redis-cache/
+    :alt: Supported Python versions
+
 A Redis cache backend for Django
 
 Changelog

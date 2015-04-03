@@ -615,7 +615,6 @@ class MultiplePythonParserTestCase(BaseRedisTestCase):
         for i in xrange(n):
             self.cache.set(i, i)
         keys = [len(client.keys('*')) for client in self.cache.clients.itervalues()]
-
         self.assertTrue(((stddev(keys) / n) * 100.0) < 10)
 
     def test_removing_nodes(self):
