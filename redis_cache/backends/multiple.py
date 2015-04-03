@@ -1,9 +1,10 @@
 from collections import defaultdict
+
 from django.core.exceptions import ImproperlyConfigured
 
 from redis_cache.backends.base import BaseRedisCache
-from redis_cache.sharder import CacheSharder
 from redis_cache.compat import DEFAULT_TIMEOUT
+from redis_cache.sharder import HashRing
 
 
 class ShardedRedisCache(BaseRedisCache):
@@ -15,7 +16,7 @@ class ShardedRedisCache(BaseRedisCache):
         self._pickle_version = None
         self.__master_client = None
         self.clients = {}
-        self.sharder = CacheSharder()
+        self.sharder = HashRing()
 
         if not isinstance(server, (list, tuple)):
             servers = [server]
@@ -54,8 +55,8 @@ class ShardedRedisCache(BaseRedisCache):
     def get_client(self, key, for_write=False):
         if for_write and self.master_client is not None:
             return self.master_client
-        node = self.sharder.get_node(key)
-        return self.clients[node.id]
+        node = self.sharder.get_node(unicode(key))
+        return self.clients[node]
 
     def shard(self, keys, for_write=False, version=None):
         """
