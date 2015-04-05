@@ -504,7 +504,7 @@ class BaseRedisTestCase(TestCase):
         ttl = self.cache.ttl('a')
         self.assertAlmostEqual(ttl, 1)
 
-        time.sleep(1)
+        time.sleep(1.1)
 
         ttl = self.cache.ttl('a')
         self.assertEqual(ttl, 0)
@@ -515,6 +515,7 @@ class BaseRedisTestCase(TestCase):
         """
         ttl = self.cache.ttl('does_not_exist')
         self.assertEqual(ttl, 0)
+
 
 @override_settings(
     CACHES={
