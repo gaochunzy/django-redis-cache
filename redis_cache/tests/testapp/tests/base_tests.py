@@ -1,26 +1,17 @@
 # -*- coding: utf-8 -*-
 from hashlib import sha1
-from math import sqrt
 import time
 
 try:
     import cPickle as pickle
 except ImportError:
     import pickle
-from django.conf import settings
 from django.core.cache import get_cache
-from django.test import TestCase
-try:
-    from django.test import override_settings
-except ImportError:
-    from django.test.utils import override_settings
 
 import redis
 
-from .models import Poll, expensive_calculation
-from redis_cache.cache import RedisCache, ImproperlyConfigured, pool
-from redis_cache.server import server
-from redis.connection import UnixDomainSocketConnection
+from redis_cache.tests.testapp.models import Poll, expensive_calculation
+from redis_cache.cache import RedisCache, pool
 
 
 # functions/classes for complex data type tests
@@ -33,18 +24,7 @@ class C:
         return 24
 
 
-def mean(lst):
-    return sum(lst) / len(lst)
-
-
-def stddev(lst):
-    """returns the standard deviation of lst"""
-    avg = mean(lst)
-    variance = sum((i - avg) ** 2 for i in lst)
-    return sqrt(variance)
-
-
-class BaseRedisTestCase(TestCase):
+class BaseRedisTestCase(object):
 
     def setUp(self):
         # use DB 16 for testing and hope there isn't any important data :->
@@ -66,23 +46,6 @@ class BaseRedisTestCase(TestCase):
 
     def get_cache(self, backend=None):
         return get_cache(backend or 'default')
-
-    def test_bad_db_initialization(self):
-        self.assertRaises(ImproperlyConfigured, self.get_cache, 'redis_cache.cache://%s:%s?db=not_a_number' % (server.host, server.port))
-
-    def test_bad_port_initialization(self):
-        self.assertRaises(ImproperlyConfigured, self.get_cache, 'redis_cache.cache://%s:not_a_number?db=15' % server.host)
-
-    def test_default_initialization(self):
-        self.reset_pool()
-        self.cache = self.get_cache()
-        client = self.cache.clients[('127.0.0.1', 6380, 15, None)]
-        connection_class = client.connection_pool.connection_class
-        if connection_class is not UnixDomainSocketConnection:
-            self.assertEqual(client.connection_pool.connection_kwargs['host'], '127.0.0.1')
-            self.assertEqual(client.connection_pool.connection_kwargs['port'], 6380)
-            self._skip_tearDown = True
-        self.assertEqual(client.connection_pool.connection_kwargs['db'], 15)
 
     def test_simple(self):
         # Simple cache set/get works
@@ -347,18 +310,6 @@ class BaseRedisTestCase(TestCase):
         a = self.cache.get('a')
         self.assertEqual(a, '1.1')
 
-    def test_multiple_connection_pool_connections(self):
-        pool._connection_pools = {}
-        options = settings.CACHES['default']['OPTIONS']
-        get_cache('redis_cache.cache.RedisCache', LOCATION="127.0.0.1:6380", OPTIONS=options)
-        self.assertEqual(len(pool._connection_pools), 1)
-        options['DB'] = 14
-        get_cache('redis_cache.RedisCache', LOCATION="127.0.0.1:6380", OPTIONS=options)
-        self.assertEqual(len(pool._connection_pools), 2)
-        options['DB'] = 15
-        get_cache('redis_cache.RedisCache', LOCATION="127.0.0.1:6380", OPTIONS=options)
-        self.assertEqual(len(pool._connection_pools), 2)
-
     def test_setting_string_integer_retrieves_string(self):
         self.assertTrue(self.cache.set("foo", "1"))
         self.assertEqual(self.cache.get("foo"), "1")
@@ -515,121 +466,3 @@ class BaseRedisTestCase(TestCase):
         """
         ttl = self.cache.ttl('does_not_exist')
         self.assertEqual(ttl, 0)
-
-
-@override_settings(
-    CACHES={
-        'default': {
-            'BACKEND': 'redis_cache.RedisCache',
-            'LOCATION': '127.0.0.1:6380',
-            'OPTIONS': {
-                'DB': 15,
-                'PASSWORD': 'yadayada',
-                'PARSER_CLASS': 'redis.connection.HiredisParser',
-                'PICKLE_VERSION': 2,
-                'CONNECTION_POOL_CLASS': 'redis.ConnectionPool',
-                'CONNECTION_POOL_CLASS_KWARGS': {
-                    'max_connections': 2,
-                }
-            },
-        },
-    }
-)
-class SingleHiredisTestCase(BaseRedisTestCase):
-    pass
-
-
-@override_settings(
-    CACHES={
-        'default': {
-            'BACKEND': 'redis_cache.RedisCache',
-            'LOCATION': '127.0.0.1:6380',
-            'OPTIONS': {
-                'DB': 15,
-                'PASSWORD': 'yadayada',
-                'PARSER_CLASS': 'redis.connection.PythonParser',
-                'PICKLE_VERSION': 2,
-                'CONNECTION_POOL_CLASS': 'redis.ConnectionPool',
-                'CONNECTION_POOL_CLASS_KWARGS': {
-                    'max_connections': 2,
-                }
-            },
-        },
-    }
-)
-class SinglePythonParserTestCase(BaseRedisTestCase):
-    pass
-
-
-@override_settings(
-    CACHES={
-        'default': {
-            'BACKEND': 'redis_cache.ShardedRedisCache',
-            'LOCATION': [
-                '127.0.0.1:6380',
-                '127.0.0.1:6381',
-                '127.0.0.1:6382',
-            ],
-            'OPTIONS': {
-                'DB': 15,
-                'PASSWORD': 'yadayada',
-                'PARSER_CLASS': 'redis.connection.HiredisParser',
-                'PICKLE_VERSION': 2,
-                'CONNECTION_POOL_CLASS': 'redis.ConnectionPool',
-                'CONNECTION_POOL_CLASS_KWARGS': {
-                    'max_connections': 2,
-                }
-            },
-        },
-    }
-)
-class MultipleHiredisTestCase(BaseRedisTestCase):
-    pass
-
-
-@override_settings(
-    CACHES={
-        'default': {
-            'BACKEND': 'redis_cache.ShardedRedisCache',
-            'LOCATION': [
-                '127.0.0.1:6380',
-                '127.0.0.1:6381',
-                '127.0.0.1:6382',
-            ],
-            'OPTIONS': {
-                'DB': 15,
-                'PASSWORD': 'yadayada',
-                'PARSER_CLASS': 'redis.connection.PythonParser',
-                'PICKLE_VERSION': 2,
-                'CONNECTION_POOL_CLASS': 'redis.ConnectionPool',
-                'CONNECTION_POOL_CLASS_KWARGS': {
-                    'max_connections': 2,
-                }
-            },
-        },
-    }
-)
-class MultiplePythonParserTestCase(BaseRedisTestCase):
-
-    def test_key_distribution(self):
-        n = 10000
-        for i in xrange(n):
-            self.cache.set(i, i)
-        keys = [len(client.keys('*')) for client in self.cache.clients.itervalues()]
-        self.assertTrue(((stddev(keys) / n) * 100.0) < 10)
-
-    def test_removing_nodes(self):
-        c1, c2, c3 = self.cache.clients.keys()
-        replicas = self.cache.sharder.replicas
-
-        self.assertEqual(len(self.cache.sharder._nodes), 3 * replicas)
-
-        self.cache.sharder.remove(c1)
-        self.assertEqual(len(self.cache.sharder._nodes), 2 * replicas)
-
-        self.cache.sharder.remove(c2)
-        self.assertEqual(len(self.cache.sharder._nodes), 1 * replicas)
-
-        self.cache.sharder.remove(c3)
-        self.assertEqual(len(self.cache.sharder._nodes), 0)
-

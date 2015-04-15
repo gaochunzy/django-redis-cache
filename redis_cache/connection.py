@@ -16,6 +16,7 @@ class CacheConnectionPool(object):
         unix_socket_path=None,
         connection_pool_class=None,
         connection_pool_class_kwargs=None,
+        **kwargs
     ):
 
         connection_identifier = (

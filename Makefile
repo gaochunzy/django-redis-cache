@@ -1,15 +1,16 @@
+SHELL := /bin/bash
 PACKAGE_NAME=redis_cache
 SELENIUM_TEST_OUTPUT?=nosetests-selenium.xml
-
 
 VENV_DIR?=.venv
 VENV_ACTIVATE=$(VENV_DIR)/bin/activate
 WITH_VENV=. $(VENV_ACTIVATE);
 
+
 default:
 	python setup.py check build
 
-.PHONY: venv setup clean teardown test package
+.PHONY: venv setup clean teardown test package shell
 
 $(VENV_ACTIVATE): requirements.txt requirements-dev.txt
 	test -f $@ || virtualenv --python=python2.7 --system-site-packages $(VENV_DIR)
@@ -21,13 +22,22 @@ venv: $(VENV_ACTIVATE)
 
 setup: venv
 
-redis_server:
+tcp_redis_server:
 	test -d redis || git clone https://github.com/antirez/redis
 	git -C redis checkout 2.6
 	make -C redis
-	echo 'requirepass yadayada' | ./redis/src/redis-server - --port 6380 > /dev/null &
-	echo 'requirepass yadayada' | ./redis/src/redis-server - --port 6381 > /dev/null &
-	echo 'requirepass yadayada' | ./redis/src/redis-server - --port 6382 > /dev/null &
+
+redis_servers:
+	test -d redis || git clone https://github.com/antirez/redis
+	git -C redis checkout 2.6
+	make -C redis
+	printf 'pidfile /tmp/redis0.pid\nrequirepass yadayada\ndaemonize yes' | ./redis/src/redis-server - --port 6380
+	printf 'pidfile /tmp/redis1.pid\nrequirepass yadayada\ndaemonize yes' | ./redis/src/redis-server - --port 6381
+	printf 'pidfile /tmp/redis2.pid\nrequirepass yadayada\ndaemonize yes' | ./redis/src/redis-server - --port 6382
+
+	printf 'pidfile /tmp/redis3.pid\nrequirepass yadayada\nunixsocket /tmp/redis0.sock\nunixsocketperm 755\ndaemonize yes' | ./redis/src/redis-server - --port 0
+	printf 'pidfile /tmp/redis4.pid\nrequirepass yadayada\nunixsocket /tmp/redis1.sock\nunixsocketperm 755\ndaemonize yes' | ./redis/src/redis-server - --port 0
+	printf 'pidfile /tmp/redis5.pid\nrequirepass yadayada\nunixsocket /tmp/redis2.sock\nunixsocketperm 755\ndaemonize yes' | ./redis/src/redis-server - --port 0
 
 clean:
 	python setup.py clean
@@ -42,9 +52,17 @@ clean:
 teardown:
 	rm -rf $(VENV_DIR)/
 
-test: venv redis_server
+test: venv redis_servers
 	$(WITH_VENV) PYTHONPATH=$(PYTHONPATH): django-admin.py test --settings=redis_cache.tests.settings
-	pkill redis-server
+	kill `cat /tmp/redis0.pid`
+	kill `cat /tmp/redis1.pid`
+	kill `cat /tmp/redis2.pid`
+	kill `cat /tmp/redis3.pid`
+	kill `cat /tmp/redis4.pid`
+	kill `cat /tmp/redis5.pid`
+
+shell: venv
+	$(WITH_VENV) PYTHONPATH=$(PYTHONPATH): django-admin.py shell --settings=redis_cache.tests.settings
 
 package:
 	python setup.py sdist

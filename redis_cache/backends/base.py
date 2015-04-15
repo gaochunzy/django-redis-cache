@@ -50,7 +50,7 @@ class BaseRedisCache(BaseCache):
                 parser_class=self.parser_class,
                 **kwargs
             )
-            kwargs.update(client.pool.connection_kwargs)
+            kwargs.update(client.connection_pool.connection_kwargs)
         else:
             unix_socket_path = None
             if ':' in server:
@@ -66,12 +66,13 @@ class BaseRedisCache(BaseCache):
             kwargs.update(host=host, port=port, unix_socket_path=unix_socket_path)
             client = redis.Redis(**kwargs)
 
-        connection_pool = pool.get_connection_pool(
+        kwargs.update(
             parser_class=self.parser_class,
             connection_pool_class=self.connection_pool_class,
             connection_pool_class_kwargs=self.connection_pool_class_kwargs,
-            **kwargs
         )
+
+        connection_pool = pool.get_connection_pool(**kwargs)
         client.connection_pool = connection_pool
         return client
 
