@@ -31,24 +31,23 @@ redis_servers:
 	test -d redis || git clone https://github.com/antirez/redis
 	git -C redis checkout 2.6
 	make -C redis
-	for i in `seq 1 3`; do \
+	for i in 1 2 3; do \
     	./redis/src/redis-server \
     		--pidfile /tmp/redis`echo $$i`.pid \
     		--requirepass yadayada \
     		--daemonize yes \
-    		--port `echo 638$$i` \
-    done; \
+    		--port `echo 638$$i` ; \
+    	done
 
-	for i in `seq 4 6`; do \
+	for i in 4 5 6; do \
     	./redis/src/redis-server \
     		--pidfile /tmp/redis`echo $$i`.pid \
     		--requirepass yadayada \
     		--daemonize yes \
     		--port 0 \
     		--unixsocket /tmp/redis`echo $$i`.sock \
-    		--unixsocketperm 755 \
-    done; \
-
+    		--unixsocketperm 755 ; \
+    	done
 clean:
 	python setup.py clean
 	rm -rf build/
