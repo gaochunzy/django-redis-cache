@@ -31,13 +31,23 @@ redis_servers:
 	test -d redis || git clone https://github.com/antirez/redis
 	git -C redis checkout 2.6
 	make -C redis
-	printf 'pidfile /tmp/redis0.pid\nrequirepass yadayada\ndaemonize yes' | ./redis/src/redis-server - --port 6380
-	printf 'pidfile /tmp/redis1.pid\nrequirepass yadayada\ndaemonize yes' | ./redis/src/redis-server - --port 6381
-	printf 'pidfile /tmp/redis2.pid\nrequirepass yadayada\ndaemonize yes' | ./redis/src/redis-server - --port 6382
+	for i in `seq 1 3`; do \
+    	./redis/src/redis-server \
+    		--pidfile /tmp/redis`echo $$i`.pid \
+    		--requirepass yadayada \
+    		--daemonize yes \
+    		--port `echo 638$$i` \
+    done; \
 
-	printf 'pidfile /tmp/redis3.pid\nrequirepass yadayada\nunixsocket /tmp/redis0.sock\nunixsocketperm 755\ndaemonize yes' | ./redis/src/redis-server - --port 0
-	printf 'pidfile /tmp/redis4.pid\nrequirepass yadayada\nunixsocket /tmp/redis1.sock\nunixsocketperm 755\ndaemonize yes' | ./redis/src/redis-server - --port 0
-	printf 'pidfile /tmp/redis5.pid\nrequirepass yadayada\nunixsocket /tmp/redis2.sock\nunixsocketperm 755\ndaemonize yes' | ./redis/src/redis-server - --port 0
+	for i in `seq 4 6`; do \
+    	./redis/src/redis-server \
+    		--pidfile /tmp/redis`echo $$i`.pid \
+    		--requirepass yadayada \
+    		--daemonize yes \
+    		--port 0 \
+    		--unixsocket /tmp/redis`echo $$i`.sock \
+    		--unixsocketperm 755 \
+    done; \
 
 clean:
 	python setup.py clean
