@@ -7,6 +7,7 @@ DATABASES = {
 }
 
 INSTALLED_APPS = [
+    'django_nose',
     'redis_cache.tests.testapp',
 ]
 
@@ -30,4 +31,4 @@ CACHES = {
         },
     },
 }
-print "sean"
+TEST_RUNNER = 'django_nose.NoseTestSuiteRunner'
