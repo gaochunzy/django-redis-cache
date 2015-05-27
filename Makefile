@@ -68,7 +68,7 @@ teardown:
 
 .PHONY: install_django
 install_django:
-	$(WITH_VENV) pip install Django==1.8
+	$(WITH_VENV) pip install Django==$(DJANGO_VERSION)
 
 .PHONY: test_base
 test_base:
