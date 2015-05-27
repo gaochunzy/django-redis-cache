@@ -14,7 +14,7 @@ env:
 install:
   - pip install Django==$DJANGO_VERSION
 # command to run tests
-script: make test
+script: make test_travis
 branches:
   only:
     - unstable
