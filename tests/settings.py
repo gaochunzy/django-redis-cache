@@ -8,7 +8,7 @@ DATABASES = {
 
 INSTALLED_APPS = [
     'django_nose',
-    'redis_cache.tests.testapp',
+    'tests.testapp',
 ]
 
 ROOT_URLCONF = 'tests.urls'
@@ -18,7 +18,7 @@ SECRET_KEY = "shh...it's a seakret"
 CACHES = {
     'default': {
         'BACKEND': 'redis_cache.RedisCache',
-        'LOCATION': '127.0.0.1:6380',
+        'LOCATION': '127.0.0.1:6381',
         'OPTIONS': {
             'DB': 15,
             'PASSWORD': 'yadayada',

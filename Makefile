@@ -57,13 +57,12 @@ teardown:
 	rm -rf $(VENV_DIR)/
 
 test: venv redis_servers
-	$(WITH_VENV) PYTHONPATH=$(PYTHONPATH): django-admin.py test --settings=redis_cache.tests.settings
-	for i in 1 2 3 4 5 6; do \
-		kill `cat /tmp/redis$$i.pid` \
-	done
+	$(WITH_VENV) PYTHONPATH=$(PYTHONPATH): django-admin.py test --settings=tests.settings -s
+
+	for i in 1 2 3 4 5 6; do kill `cat /tmp/redis$$i.pid`; done;
 
 shell: venv
-	$(WITH_VENV) PYTHONPATH=$(PYTHONPATH): django-admin.py shell --settings=redis_cache.tests.settings
+	$(WITH_VENV) PYTHONPATH=$(PYTHONPATH): django-admin.py shell --settings=tests.settings
 
 package:
 	python setup.py sdist

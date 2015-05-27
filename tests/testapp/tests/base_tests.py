@@ -10,7 +10,7 @@ from django.core.cache import get_cache
 
 import redis
 
-from redis_cache.tests.testapp.models import Poll, expensive_calculation
+from tests.testapp.models import Poll, expensive_calculation
 from redis_cache.cache import RedisCache, pool
 
 

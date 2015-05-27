@@ -50,7 +50,10 @@ class BaseRedisCache(BaseCache):
                 parser_class=self.parser_class,
                 **kwargs
             )
-            kwargs.update(client.connection_pool.connection_kwargs)
+            kwargs.update(
+                client.connection_pool.connection_kwargs,
+                unix_socket_path=client.connection_pool.connection_kwargs.get('path'),
+            )
         else:
             unix_socket_path = None
             if ':' in server:
