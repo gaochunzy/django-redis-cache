@@ -9,19 +9,22 @@ WITH_VENV=. $(VENV_ACTIVATE);
 default:
 	python setup.py check build
 
-.PHONY: venv setup clean teardown test package shell
-
 $(VENV_ACTIVATE): requirements*.txt
 	test -f $@ || virtualenv --python=python2.7 --system-site-packages $(VENV_DIR)
-	$(WITH_VENV) pip install --no-deps -r requirements.txt
-	$(WITH_VENV) pip install -r requirements-dev.txt
-	$(WITH_VENV) $(test -f requirements-local.txt && pip install -r requirements-local.txt)
 	touch $@
 
+.PHONY: install_requirements
+install_requirements: requirements*.txt
+	$(WITH_VENV) pip install --no-deps -r requirements.txt
+	$(WITH_VENV) pip install --no-deps -r requirements-dev.txt
+
+.PHONY: venv
 venv: $(VENV_ACTIVATE)
 
+.PHONY: setup
 setup: venv
 
+.PHONY: redis_servers
 redis_servers:
 	test -d redis || git clone https://github.com/antirez/redis
 	git -C redis checkout 2.6
@@ -43,6 +46,12 @@ redis_servers:
     		--unixsocket /tmp/redis`echo $$i`.sock \
     		--unixsocketperm 755 ; \
     	done
+
+.PHONY: kill_servers
+kill_servers:
+	for i in 1 2 3 4 5 6; do kill `cat /tmp/redis$$i.pid`; done;
+
+.PHONY: clean
 clean:
 	python setup.py clean
 	rm -rf build/
@@ -53,16 +62,25 @@ clean:
 	rm -f test.db
 	find $(PACKAGE_NAME) -type f -name '*.pyc' -delete
 
+.PHONY: teardown
 teardown:
 	rm -rf $(VENV_DIR)/
 
-test: venv redis_servers
+.PHONY: install_django
+install_django:
+	$(WITH_VENV) pip install Django==1.8
+
+.PHONY: test_base
+test_base:
 	$(WITH_VENV) PYTHONPATH=$(PYTHONPATH): django-admin.py test --settings=tests.settings -s
 
-	for i in 1 2 3 4 5 6; do kill `cat /tmp/redis$$i.pid`; done;
+.PHONY: test_travis
+test_travis: venv install_requirements redis_servers test_base kill_servers
 
+.PHONY: test
+test: venv install_requirements install_django redis_servers test_base kill_servers
+
+.PHONY: shell
 shell: venv
 	$(WITH_VENV) PYTHONPATH=$(PYTHONPATH): django-admin.py shell --settings=tests.settings
 
-package:
-	python setup.py sdist
