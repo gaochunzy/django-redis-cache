@@ -4,7 +4,7 @@ PACKAGE_NAME=redis_cache
 VENV_DIR?=.venv
 VENV_ACTIVATE=$(VENV_DIR)/bin/activate
 WITH_VENV=. $(VENV_ACTIVATE);
-
+DJANGO_VERSION?=1.7
 
 default:
 	python setup.py check build
@@ -17,6 +17,7 @@ $(VENV_ACTIVATE): requirements*.txt
 install_requirements: requirements*.txt
 	$(WITH_VENV) pip install --no-deps -r requirements.txt
 	$(WITH_VENV) pip install --no-deps -r requirements-dev.txt
+	$(WITH_VENV) pip install Django==$(DJANGO_VERSION)
 
 .PHONY: venv
 venv: $(VENV_ACTIVATE)
@@ -47,10 +48,6 @@ redis_servers:
     		--unixsocketperm 755 ; \
     	done
 
-.PHONY: kill_servers
-kill_servers:
-	for i in 1 2 3 4 5 6; do kill `cat /tmp/redis$$i.pid`; done;
-
 .PHONY: clean
 clean:
 	python setup.py clean
@@ -66,19 +63,10 @@ clean:
 teardown:
 	rm -rf $(VENV_DIR)/
 
-.PHONY: install_django
-install_django:
-	$(WITH_VENV) pip install Django==$(DJANGO_VERSION)
-
-.PHONY: test_base
-test_base:
-	$(WITH_VENV) PYTHONPATH=$(PYTHONPATH): django-admin.py test --settings=tests.settings -s
-
-.PHONY: test_travis
-test_travis: venv install_requirements redis_servers test_base kill_servers
-
 .PHONY: test
-test: venv install_requirements install_django redis_servers test_base kill_servers
+test: venv install_requirements redis_servers
+	$(WITH_VENV) PYTHONPATH=$(PYTHONPATH): django-admin.py test --settings=tests.settings -s
+	for i in 1 2 3 4 5 6; do kill `cat /tmp/redis$$i.pid`; done;
 
 .PHONY: shell
 shell: venv
