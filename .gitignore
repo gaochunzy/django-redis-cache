@@ -18,3 +18,4 @@ dist/*
 MANIFEST
 .venv
 redis/
+*/_build/
