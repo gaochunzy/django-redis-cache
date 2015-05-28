@@ -21,26 +21,7 @@ LOCATIONS = [
 
 
 class SocketTestCase(BaseRedisTestCase, TestCase):
-
-    def test_bad_db_initialization(self):
-        return
-        #self.assertRaises(ImproperlyConfigured, self.get_cache, 'redis_cache.cache://%s:%s?db=not_a_number' % (server.host, server.port))
-
-    def test_bad_port_initialization(self):
-        return
-        #self.assertRaises(ImproperlyConfigured, self.get_cache, 'redis_cache.cache://%s:not_a_number?db=15' % server.host)
-
-    # def test_default_initialization(self):
-    #     return
-    #     self.reset_pool()
-    #     self.cache = self.get_cache()
-    #     client = self.cache.clients[('127.0.0.1', 6380, 15, None)]
-    #     connection_class = client.connection_pool.connection_class
-    #     if connection_class is not UnixDomainSocketConnection:
-    #         self.assertEqual(client.connection_pool.connection_kwargs['host'], '127.0.0.1')
-    #         self.assertEqual(client.connection_pool.connection_kwargs['port'], 6380)
-    #         self._skip_tearDown = True
-    #     self.assertEqual(client.connection_pool.connection_kwargs['db'], 15)
+    pass
 
 
 @override_settings(

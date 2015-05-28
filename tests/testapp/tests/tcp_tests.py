@@ -21,14 +21,6 @@ LOCATIONS = [
 
 class TCPTestCase(BaseRedisTestCase, TestCase):
 
-    def test_bad_db_initialization(self):
-        pass
-        #self.assertRaises(ImproperlyConfigured, self.get_cache, 'redis_cache.cache://127.0.0.1:?db=not_a_number' % (server.host, server.port))
-
-    def test_bad_port_initialization(self):
-        pass
-        #self.assertRaises(ImproperlyConfigured, self.get_cache, 'redis_cache.cache://%s:not_a_number?db=15' % server.host)
-
     def test_default_initialization(self):
         self.reset_pool()
         self.cache = self.get_cache()

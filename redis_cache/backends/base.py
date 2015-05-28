@@ -232,7 +232,6 @@ class BaseRedisCache(BaseCache):
         """
         Persist a value to the cache, and set an optional expiration time.
         """
-
         if timeout is DEFAULT_TIMEOUT:
             timeout = self.default_timeout
         if timeout is not None:

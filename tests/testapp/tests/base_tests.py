@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from hashlib import sha1
 import time
+import unittest
 
 try:
     import cPickle as pickle
@@ -12,6 +13,7 @@ import redis
 
 from tests.testapp.models import Poll, expensive_calculation
 from redis_cache.cache import RedisCache, pool
+from redis_cache.compat import DEFAULT_TIMEOUT
 
 
 # functions/classes for complex data type tests
@@ -194,6 +196,7 @@ class BaseRedisTestCase(object):
         self.assertEqual(self.cache.get("expire2"), "newvalue")
         self.assertEqual("expire3" in self.cache, False)
 
+    @unittest.skipIf(DEFAULT_TIMEOUT is None, "Version of django doesn't support indefinite timeouts.")
     def test_set_expiration_timeout_None(self):
         key, value = 'key', 'value'
         self.cache.set(key, value, timeout=None)
@@ -445,6 +448,7 @@ class BaseRedisTestCase(object):
         ttl = self.cache.ttl('a')
         self.assertAlmostEqual(ttl, 10)
 
+    @unittest.skipIf(DEFAULT_TIMEOUT is None, "Version of django doesn't support indefinite timeouts.")
     def test_ttl_no_expiry(self):
         self.cache.set('a', 'a', timeout=None)
         ttl = self.cache.ttl('a')
