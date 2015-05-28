@@ -12,7 +12,7 @@ env:
   - DJANGO_VERSION=1.7
   - DJANGO_VERSION=1.8
 # command to run tests
-script: make test_travis DJANGO_VERSION=$DJANGO_VERSION
+script: make test DJANGO_VERSION=$DJANGO_VERSION
 branches:
   only:
     - unstable
