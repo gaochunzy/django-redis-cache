@@ -56,13 +56,13 @@ class BaseRedisTestCase(object):
         # A key can be added to a cache
         self.cache.add("addkey1", "value")
         result = self.cache.add("addkey1", "newvalue")
-        self.assertEqual(result, False)
+        self.assertFalse(result)
         self.assertEqual(self.cache.get("addkey1"), "value")
 
     def test_non_existent(self):
         # Non-existent cache keys return as None/default
         # get with non-existent keys
-        self.assertEqual(self.cache.get("does_not_exist"), None)
+        self.assertIsNone(self.cache.get("does_not_exist"))
         self.assertEqual(self.cache.get("does_not_exist", "bang!"), "bang!")
 
     def test_get_many(self):
@@ -92,20 +92,20 @@ class BaseRedisTestCase(object):
         self.cache.set("key2", "eggs")
         self.assertEqual(self.cache.get("key1"), "spam")
         self.cache.delete("key1")
-        self.assertEqual(self.cache.get("key1"), None)
+        self.assertIsNone(self.cache.get("key1"))
         self.assertEqual(self.cache.get("key2"), "eggs")
 
     def test_has_key(self):
         # The cache can be inspected for cache keys
         self.cache.set("hello1", "goodbye1")
-        self.assertEqual("hello1" in self.cache, True)
-        self.assertEqual("goodbye1" in self.cache, False)
+        self.assertIn("hello1", self.cache)
+        self.assertNotIn("goodbye1", self.cache)
 
     def test_in(self):
         # The in operator can be used to inspet cache contents
         self.cache.set("hello2", "goodbye2")
-        self.assertEqual("hello2" in self.cache, True)
-        self.assertEqual("goodbye2" in self.cache, False)
+        self.assertIn("hello2", self.cache)
+        self.assertNotIn("goodbye2", self.cache)
 
     def test_incr(self):
         # Cache values can be incremented
@@ -197,19 +197,19 @@ class BaseRedisTestCase(object):
     def test_set_expiration_timeout_None(self):
         key, value = 'key', 'value'
         self.cache.set(key, value, timeout=None)
-        self.assertTrue(self.cache.ttl(key) is None)
+        self.assertIsNone(self.cache.ttl(key))
 
     def test_set_expiration_timeout_zero(self):
         key, value = self.cache.make_key('key'), 'value'
         self.cache.set(key, value, timeout=0)
-        self.assertTrue(self.cache.get_client(key).ttl(key) is None)
-        self.assertTrue(key in self.cache)
+        self.assertIsNone(self.cache.get_client(key).ttl(key))
+        self.assertIn(key, self.cache)
 
     def test_set_expiration_timeout_negative(self):
         key, value = self.cache.make_key('key'), 'value'
         self.cache.set(key, value, timeout=-1)
-        self.assertTrue(self.cache.get_client(key).ttl(key) is None)
-        self.assertFalse(key in self.cache)
+        self.assertIsNone(self.cache.get_client(key).ttl(key))
+        self.assertNotIn(key, self.cache)
 
     def test_unicode(self):
         # Unicode values can be cached
@@ -243,8 +243,8 @@ class BaseRedisTestCase(object):
         # set_many takes a second ``timeout`` parameter
         self.cache.set_many({"key1": "spam", "key2": "eggs"}, 1)
         time.sleep(2)
-        self.assertEqual(self.cache.get("key1"), None)
-        self.assertEqual(self.cache.get("key2"), None)
+        self.assertIsNone(self.cache.get("key1"))
+        self.assertIsNone(self.cache.get("key2"))
 
     def test_delete_many(self):
         # Multiple keys can be deleted using delete_many
@@ -252,8 +252,8 @@ class BaseRedisTestCase(object):
         self.cache.set("key2", "eggs")
         self.cache.set("key3", "ham")
         self.cache.delete_many(["key1", "key2"])
-        self.assertEqual(self.cache.get("key1"), None)
-        self.assertEqual(self.cache.get("key2"), None)
+        self.assertIsNone(self.cache.get("key1"))
+        self.assertIsNone(self.cache.get("key2"))
         self.assertEqual(self.cache.get("key3"), "ham")
 
     def test_clear(self):
@@ -261,8 +261,8 @@ class BaseRedisTestCase(object):
         self.cache.set("key1", "spam")
         self.cache.set("key2", "eggs")
         self.cache.clear()
-        self.assertEqual(self.cache.get("key1"), None)
-        self.assertEqual(self.cache.get("key2"), None)
+        self.assertIsNone(self.cache.get("key1"))
+        self.assertIsNone(self.cache.get("key2"))
 
     def test_long_timeout(self):
         """Using a timeout greater than 30 days makes memcached think
@@ -288,7 +288,7 @@ class BaseRedisTestCase(object):
             self.assertEqual(new_version, 2)
             new_key = self.cache.make_key(key, version=new_version)
             self.assertEqual(new_key, ':2:key1')
-            self.assertEqual(self.cache.get(key, version=1), None)
+            self.assertIsNone(self.cache.get(key, version=1))
             self.assertEqual(self.cache.get(key, version=2), 'spam')
 
     def test_pickling_cache_object(self):
@@ -297,7 +297,7 @@ class BaseRedisTestCase(object):
         # Now let's do a simple operation using the unpickled cache object
         cache.add("addkey1", "value")
         result = cache.add("addkey1", "newvalue")
-        self.assertEqual(result, False)
+        self.assertFalse(result)
         self.assertEqual(cache.get("addkey1"), "value")
 
     def test_float_caching(self):
@@ -316,9 +316,9 @@ class BaseRedisTestCase(object):
 
     def test_setting_bool_retrieves_bool(self):
         self.assertTrue(self.cache.set("bool_t", True))
-        self.assertEqual(self.cache.get("bool_t"), True)
+        self.assertTrue(self.cache.get("bool_t"))
         self.assertTrue(self.cache.set("bool_f", False))
-        self.assertEqual(self.cache.get("bool_f"), False)
+        self.assertFalse(self.cache.get("bool_f"))
 
     def test_delete_pattern(self):
         data = {
@@ -372,9 +372,9 @@ class BaseRedisTestCase(object):
         self.cache.set('b', 'b', 5)
         self.cache.reinsert_keys()
         self.assertEqual(self.cache.get('a'), 'a')
-        self.assertTrue(self.cache.get_client('a').ttl(self.cache.make_key('a')) > 1)
+        self.assertGreater(self.cache.get_client('a').ttl(self.cache.make_key('a')), 1)
         self.assertEqual(self.cache.get('b'), 'b')
-        self.assertTrue(self.cache.get_client('b').ttl(self.cache.make_key('b')) > 1)
+        self.assertGreater(self.cache.get_client('b').ttl(self.cache.make_key('b')), 1)
 
     def test_get_or_set(self):
 
@@ -403,7 +403,7 @@ class BaseRedisTestCase(object):
 
     def assertMaxConnection(self, cache, max_num):
         for client in cache.clients.itervalues():
-            self.assertTrue(client.connection_pool._created_connections <= max_num)
+            self.assertLessEqual(client.connection_pool._created_connections, max_num)
 
     def test_max_connections(self):
         pool._connection_pools = {}
@@ -448,7 +448,7 @@ class BaseRedisTestCase(object):
     def test_ttl_no_expiry(self):
         self.cache.set('a', 'a', timeout=None)
         ttl = self.cache.ttl('a')
-        self.assertTrue(ttl is None)
+        self.assertIsNone(ttl)
 
     def test_ttl_past_expiry(self):
         self.cache.set('a', 'a', timeout=1)

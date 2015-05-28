@@ -62,7 +62,6 @@ clean:
 .PHONY: teardown
 teardown:
 	rm -rf $(VENV_DIR)/
-	rm -rf redis
 
 .PHONY: test
 test: venv install_requirements redis_servers
